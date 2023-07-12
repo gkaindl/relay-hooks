@@ -1,16 +1,24 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Reducer, useCallback, useEffect, useReducer, useRef } from 'react';
 
 export function useForceUpdate(): () => void {
-	const [, setValue] = useState<undefined[]>([]);
-	const forceUpdateRef = useRef<(() => void) | undefined>(() => setValue([]));
-
-	useEffect(
-		() => () => { forceUpdateRef.current = undefined; },
-		[forceUpdateRef]
-	);
-
-	return useCallback(
-		() => forceUpdateRef.current?.(),
-		[forceUpdateRef]
-	);
+    const [, forceUpdate] = useReducer<Reducer<number, void>>((x) => x + 1, 0);
+    const mountState = useRef({ mounted: false, pending: false });
+    useEffect(() => {
+        mountState.current.mounted = true;
+        if (mountState.current.pending) {
+            mountState.current.pending = false;
+            forceUpdate();
+        }
+        return () => {
+            mountState.current = { mounted: false, pending: false };
+        };
+    }, []);
+    const update = useCallback(() => {
+        if (mountState.current.mounted) {
+            forceUpdate();
+        } else {
+            mountState.current.pending = true;
+        }
+    }, [mountState, forceUpdate]);
+    return update;
 }
